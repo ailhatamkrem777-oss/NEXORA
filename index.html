@@ -89,7 +89,7 @@ let cloudProfile = null;
 let cloudStatus = 'غير مهيأ';
 function cloudConfigured(){return !!(window.supabase && NEXORA_SUPABASE_URL.startsWith('https://') && !NEXORA_SUPABASE_URL.includes('PASTE_') && NEXORA_SUPABASE_ANON_KEY && !NEXORA_SUPABASE_ANON_KEY.includes('PASTE_'));}
 function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-function normalizeQuestionText(v){return String(v||'').toLowerCase().normalize('NFKC').replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/[ًٌٍَُِّْـٰ]/g,'').replace(/[٠-٩]/g,d=>String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).replace(/[۰-۹]/g,d=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace(/[\u200b-\u200f\u202a-\u202e]/g,'').replace(/[^\p{L}\p{N}]+/gu,' ').replace(/\s+/g,' ').trim();}
+function normalizeQuestionText(v){return String(v||'').toLowerCase().normalize('NFKC').replace(/[أإآ]/g,'ا').replace(/ة/g,'ه').replace(/[ًٌٍَُِّْـ]/g,'').replace(/\s+/g,' ').trim();}
 const bank={
 quiz:{
 easy:[
@@ -775,6 +775,81 @@ function getMillionQuestions(cat){
  return uniqueQuestionList(chosen).slice(0,15);
 }
 // Remove exact duplicate question texts across every quiz bank so separate activities and levels don't reuse identical prompts.
+// NEXORA football additions — approved batches 1–4 (excluding the already-existing Solskjaer question).
+// Each item follows the existing [question, options, correctIndex] format.
+gameQuestionSets.football.push(
+ ['من أول حارس مرمى فاز بالكرة الذهبية؟',['ليف ياشين','جانلويجي بوفون','دينوزوف','إيكر كاسياس'],0],
+ ['أي نادٍ أقصى برشلونة من نصف نهائي دوري الأبطال 2010؟',['تشيلسي','إنتر ميلان','بايرن ميونخ','مانشستر يونايتد'],1],
+ ['أي منتخب أقصى البرازيل من كأس العالم 2006؟',['ألمانيا','فرنسا','إيطاليا','البرتغال'],1],
+ ['من سجل هدف الفوز لليونان في نهائي يورو 2004؟',['أنجيلوس خاريستياس','ثيودوروس زاغوراكيس','جورجيوس كاراغونيس','تريانون ديلّاس'],0],
+ ['من قاد بورتو تدريبياً للفوز بدوري الأبطال 2004؟',['كارلو أنشيلوتي','جوزيه مورينيو','أوتمار هيتسفيلد','لويس فيليبي سكولاري'],1],
+ ['أي منتخب استضاف وفاز بيورو 1984؟',['ألمانيا الغربية','إيطاليا','فرنسا','إسبانيا'],2],
+ ['من كان مدرب إنتر ميلان عند تحقيق الثلاثية سنة 2010؟',['روبرتو مانشيني','جوزيه مورينيو','رافاييل بينيتيز','فابيو كابيلو'],1],
+ ['أي منتخب فاز بكأس القارات 2009؟',['البرازيل','إسبانيا','الولايات المتحدة','جنوب أفريقيا'],0],
+ ['من أول لاعب أفريقي فاز بجائزة أفضل لاعب في العالم من FIFA؟',['صامويل إيتو','جورج ويا','ديدييه دروغبا','يايا توريه'],1],
+ ['أي نادٍ فاز بأول نسخة من كأس العالم للأندية سنة 2000؟',['ريال مدريد','كورينثيانز','مانشستر يونايتد','فاسكو دا غاما'],1],
+ ['أي منتخب فاز بكأس العالم 1978؟',['هولندا','الأرجنتين','البرازيل','إيطاليا'],1],
+ ['من سجل هدف ألمانيا في نهائي كأس العالم 2014؟',['توماس مولر','ماريو غوتزه','مسعود أوزيل','ميروسلاف كلوزه'],1],
+ ['من كان مدرب ألمانيا في كأس العالم 2014؟',['يورغن كلينسمان','يواخيم لوف','أوتو ريهاجل','هانزي فليك'],1],
+ ['أي منتخب فاز بكوبا أمريكا 2019؟',['الأرجنتين','تشيلي','البرازيل','أوروغواي'],2],
+ ['من فاز بكأس العالم للأندية 2012؟',['تشيلسي','كورينثيانز','برشلونة','بايرن ميونخ'],1],
+ ['من فاز بدوري أبطال أوروبا سنة 2007؟',['ليفربول','ميلان','مانشستر يونايتد','برشلونة'],1]
+);
+gameQuestionSets.lineup.push(
+ ['في خطة 4-2-3-1، ما المركز الذي يلعب عادةً خلف رأس الحربة مباشرة؟',['لاعب الوسط الهجومي','قلب الدفاع','الظهير','حارس المرمى'],0],
+ ['ما المقصود بمصطلح False Nine؟',['مهاجم يتراجع إلى الوسط لصناعة اللعب','جناح يلعب كظهير','قلب دفاع متقدم','حارس مرمى ليبرو'],0],
+ ['في خطة 3-5-2، ما الدور الأساسي للـ Wing-back؟',['تغطية الطرف هجومياً ودفاعياً','البقاء بجانب الحارس','اللعب كمهاجمين','التمركز في العمق فقط'],0],
+ ['ما الفرق الأساسي بين Single Pivot وDouble Pivot؟',['ارتكاز واحد مقابل لاعبي ارتكاز','جناح واحد مقابل جناحين','مهاجم واحد مقابل مهاجمين','ثلاثة مدافعين مقابل أربعة'],0],
+ ['ما المقصود بالـ Inverted Full-back؟',['ظهير يدخل إلى وسط الملعب','مهاجم يتراجع للدفاع','قلب دفاع يتحول إلى جناح','حارس يشارك في ركلات الجزاء'],0],
+ ['في خطة 4-4-2 الماسية، ما المركز الموجود في قمة الماسة؟',['لاعب الوسط الهجومي','قلب الدفاع','الظهير الأيسر','المهاجم الثاني دائماً'],0]
+);
+gameQuestionSets.nationalteam.push(
+ ['أي منتخب فاز بكأس العالم 2010؟',['هولندا','إسبانيا','ألمانيا','الأوروغواي'],1],
+ ['أي منتخب فاز بيورو 1992 بعد دخوله بديلاً عن يوغوسلافيا؟',['السويد','الدنمارك','ألمانيا','هولندا'],1],
+ ['أي منتخب خسر نهائي كأس العالم 1958 أمام البرازيل؟',['السويد','المجر','ألمانيا الغربية','فرنسا'],0],
+ ['أي منتخب فاز بكأس العالم 1966 على أرضه؟',['إنجلترا','ألمانيا الغربية','الأرجنتين','إيطاليا'],0]
+);
+gameQuestionSets.speed.push(
+ ['من فاز بالدوري الإنجليزي موسم 2015–16؟',['ليستر سيتي','أرسنال','توتنهام','مانشستر سيتي'],0],
+ ['من سجل هدف البرتغال في نهائي يورو 2016؟',['كريستيانو رونالدو','إيدير','ناني','جواو موتينيو'],1],
+ ['أي نادٍ فاز بالدوري الألماني موسم 2008–09؟',['بايرن ميونخ','فولفسبورغ','شتوتغارت','هامبورغ'],1],
+ ['من كان حارس إيطاليا الأساسي في كأس العالم 2006؟',['جانلويجي بوفون','أنجلو بيروتسي','ماركو أميليا','فرانشيسكو تولدو'],0],
+ ['من فاز بكوبا أمريكا 2015؟',['الأرجنتين','البرازيل','تشيلي','الأوروغواي'],2],
+ ['أي نادٍ فاز بالدوري الإنجليزي موسم 2003–04 دون خسارة؟',['أرسنال','مانشستر يونايتد','تشيلسي','ليفربول'],0],
+ ['من فاز بكأس آسيا 2015؟',['اليابان','أستراليا','كوريا الجنوبية','إيران'],1]
+);
+gameQuestionSets.duel.push(
+ ['من سجل هدف مانشستر يونايتد في نهائي دوري الأبطال 2008؟',['كريستيانو رونالدو','واين روني','كارلوس تيفيز','بول سكولز'],0],
+ ['من سجل هدف برشلونة في نهائي دوري الأبطال 2006؟',['صامويل إيتو','رونالدينيو','جوليانو بيليتي','ديكو'],2],
+ ['من سجل هدف الفوز لمانشستر سيتي في نهائي كأس الاتحاد الإنجليزي 2011؟',['يحيى توريه','ديفيد سيلفا','كارلوس تيفيز','إدين دجيكو'],0],
+ ['من سجل هدف برشلونة في نهائي دوري الأبطال 2011؟',['دافيد فيا','ليونيل ميسي','بيدرو','تشافي'],1]
+);
+gameQuestionSets.shirt.push(
+ ['ما رقم تييري هنري الأشهر مع أرسنال؟',['14','10','7','9'],0],
+ ['ما رقم فرانشيسكو توتي الأشهر مع روما؟',['10','8','7','11'],0],
+ ['ما رقم أندريا بيرلو مع منتخب إيطاليا في مونديال 2006؟',['21','10','8','6'],0],
+ ['ما رقم زين الدين زيدان مع ريال مدريد؟',['5','10','7','14'],0],
+ ['ما رقم ستيفن جيرارد مع ليفربول؟',['8','7','10','4'],0],
+ ['ما رقم كاكا مع ميلان؟',['22','10','8','7'],0]
+);
+gameQuestionSets.truefalse.push(
+ ['فاز تشيلسي بالدوري الإنجليزي موسم 2016–17 بقيادة أنطونيو كونتي.',['صح','خطأ'],0],
+ ['وصل توتنهام إلى نهائي دوري أبطال أوروبا سنة 2019.',['صح','خطأ'],0],
+ ['فاز أياكس بدوري أبطال أوروبا سنة 1995.',['صح','خطأ'],0],
+ ['فاز أتلتيكو مدريد بالدوري الإسباني موسم 2013–14.',['صح','خطأ'],0],
+ ['فاز مانشستر سيتي بدوري أبطال أوروبا لأول مرة سنة 2023.',['صح','خطأ'],0],
+ ['سجل زين الدين زيدان هدفين في نهائي كأس العالم 1998.',['صح','خطأ'],0]
+);
+gameQuestionSets.complete.push(
+ ['أكمل: اللاعب الذي سجل هدف الفوز لإسبانيا في نهائي يورو 2008 هو…',['فرناندو توريس','دافيد فيا','تشافي','سيسك فابريغاس'],0],
+ ['أكمل: النادي الذي فاز بدوري أبطال أوروبا سنة 1997 هو…',['بوروسيا دورتموند','يوفنتوس','أياكس','مانشستر يونايتد'],0],
+ ['أكمل: جائزة أفضل لاعب في كأس العالم 2014 فاز بها…',['ليونيل ميسي','مانويل نوير','خاميس رودريغيز','توماس مولر'],0]
+);
+gameQuestionSets.memory.push(
+ ['أي لاعب مثّل منتخب ليبيريا؟',['جورج ويا','خريستو ستويتشكوف','ديدييه دروغبا','صامويل إيتو'],0],
+ ['أي لاعب مثّل منتخب بلغاريا؟',['خريستو ستويتشكوف','دافور شوكر','رابح ماجر','ألين بوكسيتش'],0],
+ ['أي لاعب مثّل منتخب ساحل العاج؟',['ديدييه دروغبا','صامويل إيتو','جورج ويا','بيير إيميريك أوباميانغ'],0]
+);
 function dedupeQuestionBanksGlobally(){
  const seen=new Set();
  for(const categoryKey of Object.keys(bank)){
@@ -1170,7 +1245,7 @@ async function saveAdminQuestion(){if(!nexoraDb||!adminSession){$('adminFeedback
 async function deleteAdminQuestion(id){const q=adminQuestionRows.find(x=>x.id===id);if(!q||!confirm('تأكيد حذف هذا السؤال نهائياً؟'))return;const {error}=await nexoraDb.from('questions').delete().eq('id',id);if(error){alert('تعذّر الحذف: '+error.message);return}if(editingQuestionId===id)resetAdminQuestionForm();await loadAdminQuestions();await loadPublicQuestions()}
 async function adminSignOut(){if(nexoraDb)await nexoraDb.auth.signOut();adminSession=null;adminQuestionRows=[];renderAdminLogin('تم تسجيل الخروج من لوحة الإدارة.')}
 function exportQuestionBackup(){const rows=adminQuestionRows.map(({category_id,activity_id,difficulty,prompt,options,answer_index,explanation})=>({category_id,activity_id,difficulty,prompt,options,answer_index,explanation}));const blob=new Blob([JSON.stringify({format:'NEXORA_QUESTIONS_V1',exported_at:new Date().toISOString(),questions:rows},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='NEXORA-question-backup.json';a.click();URL.revokeObjectURL(a.href)}
-async function importQuestionBackup(file){if(!file)return;if(!nexoraDb||!adminSession){if($('adminFeedback'))$('adminFeedback').textContent='سجّل دخول المدير أولاً.';return}try{const parsed=JSON.parse(await file.text()),rows=Array.isArray(parsed)?parsed:parsed.questions;if(!Array.isArray(rows))throw new Error('الملف لا يحتوي على قائمة questions');let added=0,skipped=0;const seen=new Set();for(const q of adminQuestionRows)seen.add(normalizeQuestionText(q.prompt));for(const category of Object.values(bank))for(const level of ['easy','medium','hard','genius'])for(const item of (category[level]||[]))seen.add(normalizeQuestionText(item[0]));for(const list of Object.values(gameQuestionSets))for(const item of (list||[]))seen.add(normalizeQuestionText(item[0]));for(const q of rows){if(!q.prompt||!Array.isArray(q.options)||q.options.length!==4||!Number.isInteger(Number(q.answer_index))||Number(q.answer_index)<0||Number(q.answer_index)>3||!['easy','medium','hard','genius'].includes(String(q.difficulty||'').toLowerCase())||q.options.some(x=>!String(x||'').trim())){skipped++;continue}const key=normalizeQuestionText(q.prompt);if(!key||seen.has(key)){skipped++;continue}const {error}=await nexoraDb.from('questions').insert({category_id:q.category_id,activity_id:q.activity_id,difficulty:String(q.difficulty).toLowerCase(),prompt:String(q.prompt).trim(),options:q.options.map(x=>String(x).trim()),answer_index:Number(q.answer_index),explanation:q.explanation||''});if(error)skipped++;else{added++;seen.add(key)}}await loadAdminQuestions();await loadPublicQuestions();if($('adminFeedback'))$('adminFeedback').textContent=`اكتمل الاستيراد: أُضيف ${added}، وتم تخطي ${skipped} (تكرار أو بيانات غير صالحة).`}catch(e){alert('تعذّر استيراد الملف: '+e.message)}}
+async function importQuestionBackup(file){if(!file)return;try{const parsed=JSON.parse(await file.text()),rows=Array.isArray(parsed)?parsed:parsed.questions;if(!Array.isArray(rows))throw new Error('الملف لا يحتوي على قائمة questions');let added=0,skipped=0;for(const q of rows){if(!q.prompt||!Array.isArray(q.options)||q.options.length!==4||!Number.isInteger(Number(q.answer_index))||Number(q.answer_index)<0||Number(q.answer_index)>3){skipped++;continue}const duplicate=anyCloudDuplicate(q.prompt)||builtInQuestionExists(q.prompt);if(duplicate){skipped++;continue}const {error}=await nexoraDb.from('questions').insert({category_id:q.category_id,activity_id:q.activity_id,difficulty:q.difficulty,prompt:q.prompt,options:q.options,answer_index:Number(q.answer_index),explanation:q.explanation||''});if(error)skipped++;else added++}await loadAdminQuestions();await loadPublicQuestions();if($('adminFeedback'))$('adminFeedback').textContent=`اكتمل الاستيراد: أُضيف ${added}، وتم تخطي ${skipped} (تكرار أو بيانات غير صالحة).`}catch(e){alert('تعذّر استيراد الملف: '+e.message)}}
 function openSettings(){$('overlay').style.display='flex';$('gameLabel').textContent='إعدادات NEXORA';$('modalTitle').textContent='خصّص تجربتك';$('difficultyArea').innerHTML='';$('progressBar').style.width='100%';const sound=localStorage.getItem('nexora_sound')!=='off';const theme=localStorage.getItem('nexora_theme')||'dark';const defaultDifficulty=localStorage.getItem('nexora_default_difficulty')||'easy';const defaultCount=localStorage.getItem('nexora_default_count')||'20';$('gameContent').innerHTML=`<div class="panel"><h3>🎚️ إعدادات الجولات</h3><label>الصعوبة الافتراضية (كرة القدم تبدأ صعب)</label><select id="defaultDifficulty" class="field">${Object.entries(labels).map(([k,v])=>`<option value="${k}" ${k===defaultDifficulty?'selected':''}>${v}</option>`).join('')}</select><label>عدد الأسئلة الافتراضي</label><select id="defaultCount" class="field">${[5,10,15,20,25].map(n=>`<option value="${n}" ${String(n)===defaultCount?'selected':''}>${n} سؤالاً</option>`).join('')}</select><button class="primary" onclick="saveGameDefaults()">حفظ إعدادات الجولات</button></div><div class="panel" style="margin-top:12px"><h3>🔊 الصوت</h3><label style="display:flex;align-items:center;gap:10px"><input type="checkbox" id="soundSetting" ${sound?'checked':''} onchange="toggleSound(this.checked)"> تفعيل صوت بسيط عند الإجابة</label></div><div class="panel" style="margin-top:12px"><h3>🎨 المظهر</h3><div class="difficulty"><button class="${theme==='dark'?'active':''}" onclick="setTheme('dark')">🌙 داكن</button><button class="${theme==='light'?'active':''}" onclick="setTheme('light')">☀️ فاتح</button></div></div><div class="panel" style="margin-top:12px"><h3>♻️ النتائج</h3><p class="muted">إعادة ضبط النتائج المحلية على هذا المتصفح.</p><button class="secondary" onclick="resetResults()">إعادة ضبط النتائج</button></div><button class="primary" style="margin-top:12px" onclick="closeGame()">حفظ والعودة</button>`}
 function saveGameDefaults(){localStorage.setItem('nexora_default_difficulty',$('defaultDifficulty').value);localStorage.setItem('nexora_default_count',$('defaultCount').value);alert('تم حفظ إعدادات الجولات على هذا المتصفح.');openSettings()}
 function toggleSound(enabled){localStorage.setItem('nexora_sound',enabled?'on':'off');if(enabled)playTone(true)}

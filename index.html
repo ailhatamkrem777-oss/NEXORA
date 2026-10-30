@@ -374,6 +374,9 @@ const gameQuestionSets={
  million:[['في أي قارة تقع دولة العراق؟',['آسيا','أفريقيا','أوروبا','أمريكا الجنوبية'],0],['ما العنصر الكيميائي الذي رمزه Fe؟',['الحديد','الفلور','الفضة','الذهب'],0],['من كتب رواية «البؤساء»؟',['فيكتور هوغو','تشارلز ديكنز','تولستوي','دوستويفسكي'],0],['ما الكوكب المعروف بالكوكب الأحمر؟',['المريخ','الزهرة','زحل','عطارد'],0],['أي محيط هو الأكبر مساحةً؟',['الهادئ','الأطلسي','الهندي','المتجمد الجنوبي'],0]]
 };
 
+// Record the original question counts so newly added batch questions can be shown first.
+const originalQuestionLengths=Object.fromEntries(Object.entries(gameQuestionSets).map(([key,list])=>[key,list.length]));
+
 // Expanded, activity-specific question pools. Each activity focuses on its own subject.
 gameQuestionSets.lineup.push(
  ['أي مركز يُعرف عادةً بأنه قلب الدفاع؟',['CB','LW','ST','GK'],0],
@@ -769,9 +772,19 @@ function getMillionQuestions(cat){
  // Add the dedicated general-knowledge Millionaire bank only for the general category.
  if(cat==='general'&&gameQuestionSets.million)pools.medium.push(...gameQuestionSets.million.filter(q=>q&&q[1]&&q[1].length===4));
  const chosen=[];
- for(const [d,n] of [['easy',3],['medium',4],['hard',4],['genius',4]])chosen.push(...uniqueQuestionList(pools[d]).slice(0,n));
- // Fill any short category from its remaining unique questions, keeping difficulty order.
- if(chosen.length<15){const already=new Set(chosen.map(q=>norm(q[0])));for(const d of ['easy','medium','hard','genius']){for(const q of uniqueQuestionList(pools[d])){if(!already.has(norm(q[0]))){chosen.push(q);already.add(norm(q[0]));if(chosen.length===15)break}}if(chosen.length===15)break}}
+ // Start at medium, then use hard and genius material for the bulk of the ladder.
+ for(const [d,n] of [['medium',1],['hard',6],['genius',8]])chosen.push(...uniqueQuestionList(pools[d]).slice(0,n));
+ // If a category has fewer than 15 hard/very-hard questions, fill only the remaining places
+ // from its unused hard/medium material; easy questions are never used in Millionaire.
+ if(chosen.length<15){
+  const already=new Set(chosen.map(q=>norm(q[0])));
+  for(const d of ['genius','hard','medium']){
+   for(const q of uniqueQuestionList(pools[d])){
+    if(!already.has(norm(q[0]))){chosen.push(q);already.add(norm(q[0]));if(chosen.length===15)break}
+   }
+   if(chosen.length===15)break;
+  }
+ }
  return uniqueQuestionList(chosen).slice(0,15);
 }
 // Remove exact duplicate question texts across every quiz bank so separate activities and levels don't reuse identical prompts.
@@ -861,7 +874,11 @@ function dedupeQuestionBanksGlobally(){
  }
  for(const activityKey of Object.keys(gameQuestionSets)){
   if(!Array.isArray(gameQuestionSets[activityKey]))continue;
-  gameQuestionSets[activityKey]=gameQuestionSets[activityKey].filter(q=>{const key=norm(q[0]);if(seen.has(key))return false;seen.add(key);return true;});
+  const list=gameQuestionSets[activityKey];
+  const originalCount=originalQuestionLengths[activityKey]??list.length;
+  // Batch additions go first; original questions stay available after them.
+  const ordered=[...list.slice(originalCount),...list.slice(0,originalCount)];
+  gameQuestionSets[activityKey]=ordered.filter(q=>{const key=norm(q[0]);if(seen.has(key))return false;seen.add(key);return true;});
  }
 }
 dedupeQuestionBanksGlobally();
@@ -880,8 +897,7 @@ function getQuestionsForMode(id,d){
    // Last-resort category fallback is intentionally restricted to the main category quiz only.
    if(['football','geoquiz','moviequiz','animequiz','quiz','mystery','musicquiz'].includes(id)) set=uniqueQuestionList((bank[key]&&bank[key][d])||[]);
  }
- // Every level has its own band when an activity supplies a combined dedicated pool.
- if(custom.length>=4){const band=Math.ceil(custom.length/4),offset=({easy:0,medium:1,hard:2,genius:3})[d]||0;const customBand=custom.slice(offset*band,Math.min(custom.length,(offset+1)*band));set=uniqueQuestionList([...customBand,...bankSet,...remoteSet]);}
+ // Dedicated activity questions are ordered with the newest batch first, before older bank questions.
  const used=usedQuestionsByMode[id+'_'+d]||[];let available=set.filter(q=>!used.includes(norm(q[0])));
  // Never repeat a question within a round. If this level is exhausted, end the round instead of recycling it.
  const requested=+$('questionCount')?.value||20;const chosen=available.slice(0,Math.min(requested,available.length));
@@ -958,9 +974,9 @@ function beginGame(id){
   const count=+$('playerCount').value;playerNames=Array.from({length:count},(_,i)=>$('playerName'+(i+1)).value.trim());if(playerNames.some(n=>!n)){alert('اكتبوا أسماء كل اللاعبين قبل البداية.');return}playerScores=playerNames.map(()=>0);activePlayer=0;
  }
  if(id==='auction'&&playStyle!=='teams'){alert('مزاد كرة القدم يحتاج فريقين. اختار وضع «فريقان» واكتب اسمي الفريقين.');return}
- mode=id;difficulty=(id==='memory'?'genius':(games.find(g=>g.id===id)?.cat==='football'?'hard':(localStorage.getItem('nexora_default_difficulty')||'easy')));idx=0;score=0;correctCount=0;locked=false;teamScoredDuringQuestions=false;if(id==='mafia'){mafiaRoles=[];mafiaAlive=[];mafiaRound=1;mafiaPhase='roles';mafiaRoleSeen=[];mafiaNightTarget=-1;mafiaDoctorTarget=-1;mafiaVotes={};mafiaVoteIndex=0;}
+ if(id==='top10')topRound=0;mode=id;difficulty=(id==='memory'?'genius':(games.find(g=>g.id===id)?.cat==='football'?'medium':(localStorage.getItem('nexora_default_difficulty')||'easy')));idx=0;score=0;correctCount=0;locked=false;teamScoredDuringQuestions=false;if(id==='mafia'){mafiaRoles=[];mafiaAlive=[];mafiaRound=1;mafiaPhase='roles';mafiaRoleSeen=[];mafiaNightTarget=-1;mafiaDoctorTarget=-1;mafiaVotes={};mafiaVoteIndex=0;}
  $('gameLabel').textContent=games.find(g=>g.id===id)?.name||'التحدي';
- const top10Ids=['top10'];const oneRoundIds=['mafia','outsider','wouldyou','charades','drawguess','taboo','whoami'];const hasDifficultyLevels=!top10Ids.includes(id)&&!oneRoundIds.includes(id)&&!isMillionMode(id);const countControl=['player','career','picture','animepower'].includes(id)?'':`<div class="section-tools"><label>عدد الأسئلة</label><select id="questionCount" class="field" style="width:auto;min-width:120px" onchange="applyQuestionCount()"><option value="5" ${((localStorage.getItem('nexora_default_count')||'20')==='5')?'selected':''}>5 أسئلة</option><option value="10" ${((localStorage.getItem('nexora_default_count')||'20')==='10')?'selected':''}>10 أسئلة</option><option value="15" ${((localStorage.getItem('nexora_default_count')||'20')==='15')?'selected':''}>15 سؤالاً</option><option value="20" ${((localStorage.getItem('nexora_default_count')||'20')==='20')?'selected':''}>20 سؤالاً</option><option value="25" ${((localStorage.getItem('nexora_default_count')||'20')==='25')?'selected':''}>25 سؤالاً</option></select></div>`;$('difficultyArea').innerHTML=top10Ids.includes(id)?'<p class="muted">قائمة مرتبة بمعيار واضح — النقاط حسب المركز.</p>':isMillionMode(id)?'<p class="muted">15 سؤالاً متدرجاً؛ مستوى الصعوبة يرتفع تلقائياً مثل المسابقة التلفزيونية.</p>':oneRoundIds.includes(id)?'<p class="muted">فعالية خاصة بقواعدها الخاصة، لا تحتاج إعداد عدد أسئلة.</p>':`${hasDifficultyLevels?`<div class="difficulty"><span class="difficulty-area-label">مستوى الأسئلة:</span>${Object.entries(labels).map(([k,v])=>`<button class="${k===difficulty?'active':''}" onclick="setDifficulty('${k}')">${v}</button>`).join('')}</div>`:'<p class="muted">هذه الفعالية تستخدم نظامها الخاص.</p>'}${countControl}`;
+ const top10Ids=['top10'];const oneRoundIds=['mafia','outsider','wouldyou','charades','drawguess','taboo','whoami'];const hasDifficultyLevels=!top10Ids.includes(id)&&!oneRoundIds.includes(id)&&!isMillionMode(id);const countControl=['player','career','picture','animepower'].includes(id)?'':`<div class="section-tools"><label>عدد الأسئلة</label><select id="questionCount" class="field" style="width:auto;min-width:120px" onchange="applyQuestionCount()"><option value="5" ${((localStorage.getItem('nexora_default_count')||'20')==='5')?'selected':''}>5 أسئلة</option><option value="10" ${((localStorage.getItem('nexora_default_count')||'20')==='10')?'selected':''}>10 أسئلة</option><option value="15" ${((localStorage.getItem('nexora_default_count')||'20')==='15')?'selected':''}>15 سؤالاً</option><option value="20" ${((localStorage.getItem('nexora_default_count')||'20')==='20')?'selected':''}>20 سؤالاً</option><option value="25" ${((localStorage.getItem('nexora_default_count')||'20')==='25')?'selected':''}>25 سؤالاً</option></select></div>`;$('difficultyArea').innerHTML=top10Ids.includes(id)?'<p class="muted">قائمة مرتبة بمعيار واضح — النقاط حسب المركز.</p>':isMillionMode(id)?'<p class="muted">15 سؤالاً صعباً جداً؛ يبدأ من المتوسط ثم يتركّز على الصعب والإعجازي، ولا يستخدم أسئلة المستوى السهل.</p>':oneRoundIds.includes(id)?'<p class="muted">فعالية خاصة بقواعدها الخاصة، لا تحتاج إعداد عدد أسئلة.</p>':`${hasDifficultyLevels?`<div class="difficulty"><span class="difficulty-area-label">مستوى الأسئلة:</span>${Object.entries(labels).map(([k,v])=>`<button class="${k===difficulty?'active':''}" onclick="setDifficulty('${k}')">${v}</button>`).join('')}</div>`:'<p class="muted">هذه الفعالية تستخدم نظامها الخاص.</p>'}${countControl}`;
  if(['top10'].includes(id)){$('difficultyArea').innerHTML='<p class="muted">قائمة مرتبة بمعيار واضح — النقاط حسب المركز.</p>';renderTop10()}else if(isMillionMode(id)){questions=getMillionQuestions(categoryForGame(id));if(questions.length<15){$('gameContent').innerHTML='<p class="muted">هذه الفئة تحتاج أسئلة إضافية حتى تكتمل مسابقة الـ15 سؤالاً بدون تكرار.</p><button class="secondary" onclick="closeGame()">إغلاق</button>'}else{idx=0;millionGuaranteed=0;millionLifelines={fifty:false,audience:false,friend:false};document.querySelector('.modal').classList.add('million-modal');renderMillionQuestion()}}else if(id==='auction'){auctionRound=0;auctionBid=0;auctionTurn=0;auctionLeader=0;renderAuction()}else if(id==='player')renderPlayer();else if(id==='career')renderCareer();else if(id==='picture')renderNicknameGame();else if(id==='animepower')renderAnimePower();else if(id==='mafia')renderMafia();else if(id==='outsider')renderOutsider();else if(['wouldyou','charades','drawguess','taboo','whoami'].includes(id))renderPartyGame(id);else{const g=games.find(x=>x.id===id);questions=getQuestionsForMode(id,difficulty);applyQuestionLimit();renderQuestion()}
 }
 function applyQuestionLimit(){const sel=$('questionCount');const count=+sel?.value||15;if(sel){[...sel.options].forEach(o=>{o.disabled=+o.value>questions.length});if(+sel.value>questions.length)sel.value=String(questions.length||1)}if(questions.length>count)questions=questions.slice(0,count)}
@@ -1028,24 +1044,51 @@ function finish(title,desc,earned=score){
 const continents=['آسيا','أفريقيا','أوروبا','أمريكا الشمالية','أمريكا الجنوبية','أوقيانوسيا','القارة القطبية الجنوبية'];
 // القوائم المرتبة تعتمد معايير معلنة؛ أرقام الألقاب مأخوذة من سجل UEFA، وانتصارات كأس العالم من FIFA (تحديث 2026).
 const top10Lists=[
- {cat:'football',q:'اذكر الأندية الأكثر تتويجاً بكأس أوروبا/دوري أبطال أوروبا عبر التاريخ (حتى 2026). القائمة تتبع سجل ألقاب البطولة، وتشمل حقبة كأس أوروبا قبل تغيير الاسم.',source:'UEFA — سجل الأبطال التاريخي، حتى 2026',items:['ريال مدريد','ميلان','ليفربول','بايرن ميونخ','برشلونة','أياكس','إنتر ميلان','مانشستر يونايتد','تشيلسي','يوفنتوس'],aliases:[['ريال مدريد','real madrid'],['ميلان','ac milan','milan'],['ليفربول','liverpool'],['بايرن ميونخ','بايرن','bayern','bayern munich'],['برشلونة','barcelona'],['أياكس','اياكس','ajax'],['إنتر ميلان','انتر ميلان','inter milan','inter'],['مانشستر يونايتد','manchester united','man utd'],['تشيلسي','chelsea'],['يوفنتوس','juventus']]}
+ {cat:'football',q:'رتّب الأندية صاحبة أطول سلاسل التتويج المتتالي بالدوري المحلي. عند تساوي عدد المواسم، اعتمد ترتيب القائمة المعروض.',source:'سجل أطول سلاسل ألقاب الدوريات المحلية عالمياً، وفق الأرقام المتاحة حتى 2026',items:['تافيا — 15 لقباً','لينكولن رِد إمبس — 14 لقباً','لودوغورتس — 14 لقباً','سكُنتو — 14 لقباً','الفيصلي الأردني — 13 لقباً','باتي بوريسوف — 13 لقباً','روزنبورغ — 13 لقباً','دينامو زغرب — 11 لقباً','بايرن ميونخ — 11 لقباً','الأنصار اللبناني — 11 لقباً'],aliases:[['تافيا','tafea'],['لينكولن ريد إمبس','لينكولن رِد إمبس','lincoln red imps'],['لودوغورتس','لودوجورتس','ludogorets'],['سكونتو','سكُنتو','skonto'],['الفيصلي الأردني','الفيصلي','al faisaly jordan'],['باتي بوريسوف','باتي','bate borisov','bate'],['روزنبورغ','rosenborg'],['دينامو زغرب','dinamo zagreb'],['بايرن ميونخ','بايرن','bayern munich','bayern'],['الأنصار اللبناني','الانصار اللبناني','al ansar']]},
+ {cat:'football',q:'اذكر الأندية الأكثر تتويجاً بكأس العالم للأندية بنظام البطولة المعتمد حتى نسخة 2025.',source:'سجل أبطال FIFA Club World Cup حتى 2025',items:['ريال مدريد — 5 ألقاب','برشلونة — 3 ألقاب','تشيلسي — لقبان','بايرن ميونخ — لقبان','كورينثيانز — لقبان','ليفربول — لقب واحد','إنترناسيونال — لقب واحد','ساو باولو — لقب واحد','ميلان — لقب واحد','مانشستر يونايتد — لقب واحد'],aliases:[['ريال مدريد','real madrid'],['برشلونة','barcelona'],['تشيلسي','chelsea'],['بايرن ميونخ','بايرن','bayern munich','bayern'],['كورينثيانز','corinthians'],['ليفربول','liverpool'],['إنترناسيونال','انترناسيونال','internacional'],['ساو باولو','sao paulo'],['ميلان','ac milan','milan'],['مانشستر يونايتد','manchester united','man utd']]},
+ {cat:'football',q:'رتّب المنتخبات الأكثر مشاركة في نهائيات كأس أمم أفريقيا، وفق عدد مرات الظهور.',source:'سجل مشاركات كأس أمم أفريقيا، تحديث 30 أكتوبر 2026',items:['مصر — 27 مشاركة','ساحل العاج — 26 مشاركة','غانا — 24 مشاركة','الكاميرون — 22 مشاركة','تونس — 22 مشاركة','نيجيريا — 21 مشاركة','الجزائر — 21 مشاركة','الكونغو الديمقراطية — 21 مشاركة','المغرب — 20 مشاركة','زامبيا — 19 مشاركة'],aliases:[['مصر','egypt'],['ساحل العاج','كوت ديفوار','ivory coast','cote d ivoire'],['غانا','ghana'],['الكاميرون','cameroon'],['تونس','tunisia'],['نيجيريا','nigeria'],['الجزائر','algeria'],['الكونغو الديمقراطية','الكونغو الديموقراطية','dr congo','democratic republic of the congo'],['المغرب','morocco'],['زامبيا','zambia']]},
+ {cat:'football',q:'اذكر المنتخبات الأكثر وصولاً إلى نصف نهائي كأس العالم للرجال، حتى نسخة 2026.',source:'سجل مرات بلوغ نصف النهائي حتى كأس العالم 2026',items:['ألمانيا — 13 مرة','البرازيل — 11 مرة','إيطاليا — 8 مرات','فرنسا — 8 مرات','الأرجنتين — 7 مرات','الأوروغواي — 5 مرات','هولندا — 5 مرات','إنجلترا — 4 مرات','السويد — 4 مرات','كرواتيا — 3 مرات'],aliases:[['ألمانيا','germany'],['البرازيل','brazil'],['إيطاليا','italy'],['فرنسا','france'],['الأرجنتين','الارجنتين','argentina'],['الأوروغواي','اورغواي','uruguay'],['هولندا','netherlands','holland'],['إنجلترا','انجلترا','england'],['السويد','sweden'],['كرواتيا','croatia']]},
+ {cat:'football',q:'رتّب أبرز عشرة هدّافين في تاريخ دوري أبطال أوروبا، وفق سجل الأهداف المنشور في أكتوبر 2026.',source:'Opta Analyst — سجل الهدافين التاريخي، 16 أكتوبر 2026',items:['كريستيانو رونالدو — 140 هدفاً','ليونيل ميسي — 129 هدفاً','روبرت ليفاندوفسكي — 109 أهداف','كريم بنزيما — 90 هدفاً','كيليان مبابي — 72 هدفاً','راؤول — 71 هدفاً','إيرلينغ هالاند — 61 هدفاً','هاري كين — 57 هدفاً','توماس مولر — 57 هدفاً','رود فان نيستلروي — 56 هدفاً'],aliases:[['كريستيانو رونالدو','رونالدو','cristiano ronaldo'],['ليونيل ميسي','ميسي','lionel messi','messi'],['روبرت ليفاندوفسكي','ليفاندوفسكي','lewandowski'],['كريم بنزيما','بنزيما','benzema'],['كيليان مبابي','مبابي','mbappe','kylian mbappe'],['راؤول','راول','raul'],['إيرلينغ هالاند','هالاند','haaland'],['هاري كين','هاري','harry kane'],['توماس مولر','مولر','thomas muller'],['رود فان نيستلروي','فان نيستلروي','ruud van nistelrooy']]},
+ {cat:'football',q:'اذكر الأندية الأكثر ظهوراً في نهائي كأس الاتحاد الأوروبي/الدوري الأوروبي، وفق عدد مرات بلوغ النهائي.',source:'UEFA — سجلات نهائيات كأس الاتحاد الأوروبي والدوري الأوروبي، حتى 2026',items:['إشبيلية — 7 نهائيات','إنتر ميلان — 5 نهائيات','ليفربول — 4 نهائيات','توتنهام — 4 نهائيات','يوفنتوس — 4 نهائيات','بوروسيا مونشنغلادباخ — 4 نهائيات','أتلتيكو مدريد — 3 نهائيات','بنفيكا — 3 نهائيات','مارسيليا — 3 نهائيات','تشيلسي — نهائيان'],aliases:[['إشبيلية','اشبيليه','sevilla'],['إنتر ميلان','انتر ميلان','inter milan','inter'],['ليفربول','liverpool'],['توتنهام','tottenham','tottenham hotspur'],['يوفنتوس','juventus'],['بوروسيا مونشنغلادباخ','مونشنغلادباخ','borussia monchengladbach'],['أتلتيكو مدريد','اتلتيكو مدريد','atletico madrid'],['بنفيكا','benfica'],['مارسيليا','marseille'],['تشيلسي','chelsea']]}
+,
+ {cat:'football',q:'اذكر الأندية الأكثر تتويجاً بكأس أوروبا/دوري أبطال أوروبا عبر التاريخ، وتشمل حقبة كأس أوروبا قبل تغيير الاسم.',source:'UEFA — سجل الأبطال التاريخي حتى 2026',items:['ريال مدريد — 15 لقباً','ميلان — 7 ألقاب','ليفربول — 6 ألقاب','بايرن ميونخ — 6 ألقاب','برشلونة — 5 ألقاب','أياكس — 4 ألقاب','إنتر ميلان — 3 ألقاب','مانشستر يونايتد — 3 ألقاب','تشيلسي — لقبان','يوفنتوس — لقبان'],aliases:[['ريال مدريد','real madrid'],['ميلان','ac milan','milan'],['ليفربول','liverpool'],['بايرن ميونخ','بايرن','bayern munich','bayern'],['برشلونة','barcelona'],['أياكس','اياكس','ajax'],['إنتر ميلان','انتر ميلان','inter milan','inter'],['مانشستر يونايتد','manchester united','man utd'],['تشيلسي','chelsea'],['يوفنتوس','juventus']]}
 ];
+
 function norm(s){return s.toLowerCase().trim().replace(/[أإآ]/g,'ا').replace(/ة/g,'ه').replace(/[ًٌٍَُِّْ]/g,'').replace(/\s+/g,' ')}
 function renderTop10(){
- const listIndex=0;
+ const listIndex=topRound;
  const list=top10Lists[listIndex];
- if(!list){$('gameContent').innerHTML='<p class="muted">ماكو قائمة موثقة لهذه الفئة حالياً.</p><button class="secondary" onclick="closeGame()">إغلاق</button>';return}
- topRound=listIndex;activeTop10List=list;topFound=[];
- $('modalTitle').textContent='Top 10 — نقاط حسب المركز';$('progressBar').style.width='0%';
- $('gameContent').innerHTML=scoreMarkup()+`<p class="muted">${list.q}</p><p class="muted" style="font-size:12px">المصدر/المعيار: ${list.source}. النقاط حسب المركز الظاهر: المركز الأول = نقطة، الثاني = نقطتين… المركز العاشر = 10 نقاط.</p><div class="toplist">${list.items.map((v,i)=>`<div class="topitem" id="topitem${i}">${i+1}. <span class="muted">مخفي — ${i+1} نقاط</span></div>`).join('')}</div><input class="field" id="topGuess" placeholder="اكتب الإجابة حسب القائمة" onkeydown="if(event.key==='Enter')guessTop10()"><div id="feedback" class="feedback"></div><button class="primary" onclick="guessTop10()">تحقق</button> <button class="secondary" onclick="finishTop10()">إنهاء القائمة</button>`;
+ if(!list){finish('اكتملت قوائم TOP 10',`أنهيت كل القوائم المتاحة. مجموع نقاطك في تحدي TOP 10: ${score} نقطة.`,score);return}
+ activeTop10List=list;topFound=[];
+ $('modalTitle').textContent=`Top 10 — القائمة ${listIndex+1} من ${top10Lists.length}`;
+ $('progressBar').style.width='0%';
+ $('gameContent').innerHTML=scoreMarkup()+`<p class="muted">${list.q}</p><p class="muted" style="font-size:12px">المصدر/المعيار: ${list.source}. النقاط حسب المركز الظاهر: المركز الأول = نقطة، الثاني = نقطتين… المركز العاشر = 10 نقاط. النقاط التي جمعتها في القوائم السابقة تبقى محفوظة.</p><div class="toplist">${list.items.map((v,i)=>`<div class="topitem" id="topitem${i}">${i+1}. <span class="muted">مخفي — ${i+1} نقاط</span></div>`).join('')}</div><input class="field" id="topGuess" placeholder="اكتب الإجابة حسب القائمة" onkeydown="if(event.key==='Enter')guessTop10()"><div id="feedback" class="feedback"></div><button class="primary" onclick="guessTop10()">تحقق</button> <button class="secondary" onclick="finishTop10()">${listIndex===top10Lists.length-1?'إنهاء قوائم TOP 10':'تخطي إلى القائمة التالية ←'}</button>`;
 }
 function guessTop10(){
- const input=$('topGuess');let val=norm(input.value);if(!val)return;let list=activeTop10List||top10Lists[topRound];let i=list.aliases.findIndex(entry=>Array.isArray(entry)?entry.some(a=>norm(a)===val):norm(entry)===val);
+ const input=$('topGuess');let val=norm(input.value);if(!val)return;
+ let list=activeTop10List||top10Lists[topRound];
+ let i=list.aliases.findIndex(entry=>entry.some(a=>norm(a)===val));
  if(i<0){$('feedback').textContent='❌ مو ضمن القائمة المحددة. جرّب اسم صحيح حسب معيار القائمة.';return}
  if(topFound.includes(i)){$('feedback').textContent='هذه الإجابة انكشفت من قبل.';return}
- topFound.push(i);let earned=i+1;addCurrentPoints(earned);$('topitem'+i).classList.add('revealed');$('topitem'+i).innerHTML=`${i+1}. <b>${list.items[i]}</b> — <strong>${earned} نقاط</strong>`;input.value='';$('feedback').innerHTML=`✅ ${list.items[i]} في المركز ${i+1}، حصلت على ${earned} نقاط.<br>${scoreMarkup()}`;$('progressBar').style.width=(topFound.length/list.items.length*100)+'%';if(topFound.length===list.items.length)finishTop10();
+ topFound.push(i);let earned=i+1;addCurrentPoints(earned);
+ $('topitem'+i).classList.add('revealed');
+ $('topitem'+i).innerHTML=`${i+1}. <b>${list.items[i]}</b> — <strong>${earned} نقاط</strong>`;
+ input.value='';
+ $('feedback').innerHTML=`✅ ${list.items[i]} في المركز ${i+1}، حصلت على ${earned} نقاط.<br>${scoreMarkup()}`;
+ $('progressBar').style.width=(topFound.length/list.items.length*100)+'%';
+ if(topFound.length===list.items.length)$('feedback').innerHTML+=`<br><button class="primary" onclick="finishTop10()">القائمة التالية ←</button>`;
 }
-function finishTop10(){let list=activeTop10List||top10Lists[topRound];if(!list)return;for(let i=0;i<list.items.length;i++){if(!topFound.includes(i)&&$('topitem'+i))$('topitem'+i).innerHTML=`${i+1}. ${list.items[i]} — ${i+1} نقاط`;};finish('انتهى تحدي Top 10',`كشفت ${topFound.length} من ${list.items.length} إجابات. النقاط تُحسب حسب المركز الذي اكتشفته.`,score)}
+function finishTop10(){
+ const list=activeTop10List||top10Lists[topRound];
+ if(!list)return;
+ // Skip reveals no bonus: only answers entered by the player receive points.
+ for(let i=0;i<list.items.length;i++){
+  if(!topFound.includes(i)&&$('topitem'+i))$('topitem'+i).innerHTML=`${i+1}. ${list.items[i]} — تم التخطي دون نقاط`;
+ }
+ topRound++;
+ renderTop10();
+}
+
 const animePowerRounds=[
  {a:'غوكو (Dragon Ball)',b:'ناروتو (Naruto)',criterion:'من الأقوى حسب القوة القتالية الظاهرة في العمل؟',note:'هذه مقارنة نقاشية بين عالمين مختلفين؛ ما إلها جواب رسمي موحّد.'},
  {a:'سوكونا (Jujutsu Kaisen)',b:'غوجو ساتورو (Jujutsu Kaisen)',criterion:'من تتوقع يفوز بمواجهة مباشرة ضمن أحداث العمل؟',note:'اختار حسب الأحداث والقدرات التي ظهرت، مو حسب الشعبية.'},

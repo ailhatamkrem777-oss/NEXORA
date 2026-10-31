@@ -1174,18 +1174,18 @@ function buildTop10Generated(cat, gameId, wave){
    const chosen=Array.from({length:10},(_,j)=>shuffled[(start+j)%shuffled.length]);
    const variant=start;
    const prompts=[
-    `تحدّي ${theme.title}: اكتشف عشرة أسماء من هذه المجموعة.`,
-    `جولة ${theme.title}: حاول العثور على الإجابات العشر المخفية.`,
-    `من مجموعة ${theme.title}، اذكر أكبر عدد ممكن من الأسماء.`,
-    `اختبار ${theme.title}: ما الأسماء العشرة الموجودة في قائمة هذه الجولة؟`,
-    `تحدّي معرفة ${theme.title}: اكتشف عناصر القائمة العشرة.`,
-    `عندك عشر خانات في موضوع ${theme.title}؛ املأها بإجاباتك.`,
-    `جولة جديدة من ${theme.title}: خمّن الأسماء التي اختيرت لهذه القائمة.`,
-    `هل تعرف ${theme.title}؟ اكتشف عناصر قائمة NEXORA العشرة.`,
-    `تحدّي المجموعة: اعثر على عشرة أسماء تخص ${theme.title}.`,
-    `اختبر معلوماتك في ${theme.title} واكتشف الإجابات العشر.`
+    `الموضوع: ${theme.title}. اذكر أي 10 أسماء صحيحة تنتمي إلى هذا الموضوع.`,
+    `تحدّي ${theme.title}: سمِّ عشرة عناصر من هذه المجموعة المعروفة.`,
+    `اكتب 10 إجابات صحيحة من موضوع ${theme.title}.`,
+    `في موضوع ${theme.title}، اذكر عشرة أمثلة صحيحة.`,
+    `جولة ${theme.title}: المطلوب منك عشرة أسماء تنتمي إلى هذا المجال.`,
+    `اختبر معلوماتك في ${theme.title}: أدخل أي عشرة أسماء صحيحة من هذا الموضوع.`,
+    `من مجال ${theme.title}، اذكر عشرة عناصر تعرفها.`,
+    `تحدّي المجموعة: اكتب 10 أسماء من ${theme.title}.`,
+    `كم تعرف عن ${theme.title}؟ اذكر عشرة أسماء صحيحة من هذا المجال.`,
+    `املأ الخانات العشر بأسماء صحيحة من موضوع ${theme.title}.`
    ];
-   out.push({cat,gameId,id:`auto:${cat}:${gameId}:${wave}:${ti}:${start}`,q:prompts[variant],source:'قائمة تحدّي NEXORA. ترتيب المراكز هنا مخصص للعبة والنقاط، وليس تصنيفاً عالمياً أو إحصائياً.',items:chosen.map(x=>x.split('|')[0]),aliases:chosen.map(x=>x.split('|').filter(Boolean))});
+   out.push({cat,gameId,id:`auto:${cat}:${gameId}:${wave}:${ti}:${start}`,q:prompts[variant],source:`الموضوع محدد: ${theme.title}. تقبل اللعبة أي 10 إجابات من بنك هذا الموضوع (${theme.items.length} اسماً). لا يوجد ترتيب عالمي مخفي؛ ترتيب النقاط حسب ترتيب اكتشاف الإجابات: الأولى نقطة، والثانية نقطتان، حتى العاشرة 10 نقاط.`,openPool:true,poolItems:shuffled.map(x=>x.split('|')[0]),poolAliases:shuffled.map(x=>x.split('|').filter(Boolean)),fallbackItems:chosen.map(x=>x.split('|')[0]),items:Array(10).fill(''),aliases:Array.from({length:10},()=>[])});
   }
  });
  return out;
@@ -1195,13 +1195,22 @@ function getTop10Wave(cat,gameId){return Math.max(0,Number(localStorage.getItem(
 function nextTop10Wave(cat,gameId){localStorage.setItem(top10WaveKey(cat,gameId),String(getTop10Wave(cat,gameId)+1));}
 
 function norm(s){return s.toLowerCase().trim().replace(/[أإآ]/g,'ا').replace(/ة/g,'ه').replace(/[ًٌٍَُِّْ]/g,'').replace(/\s+/g,' ')}
-let top10Misses=0,top10Closed=false;
+let top10Misses=0,top10Closed=false,top10UsedPoolAnswers=[];
 function top10ListsForMode(){const cat=categoryForGame(mode);const base=top10Lists.filter(x=>x.cat===cat&&(!x.gameId||x.gameId===mode));return base.concat(buildTop10Generated(cat,mode,getTop10Wave(cat,mode)))}
 function advanceTop10Turn(){if(playStyle==='players')activePlayer=(activePlayer+1)%playerNames.length;else if(playStyle==='teams')activeTeam=(activeTeam+1)%teamNames.length;}
 function revealTop10Remainder(list,reason){
  markTop10ListSeen(list);
- for(let i=0;i<list.items.length;i++)if(!topFound.includes(i)){
-  const row=$('topitem'+i);if(row){row.classList.add('revealed');row.innerHTML=`${i+1}. <b>${list.items[i]}</b> — لم تُكتشف، دون نقاط`;}
+ if(list.openPool){
+  const usedNames=new Set(list.items.filter(Boolean).map(x=>norm(x)));
+  const remaining=(list.fallbackItems||[]).filter(x=>!usedNames.has(norm(x)));
+  for(let i=0;i<list.items.length;i++)if(!topFound.includes(i)){
+   if(!list.items[i])list.items[i]=remaining.shift()||'إجابة أخرى من المجموعة';
+   const row=$('topitem'+i);if(row){row.classList.add('revealed');row.innerHTML=`${i+1}. <b>${list.items[i]}</b> — لم تُكتشف، دون نقاط`;}
+  }
+ }else{
+  for(let i=0;i<list.items.length;i++)if(!topFound.includes(i)){
+   const row=$('topitem'+i);if(row){row.classList.add('revealed');row.innerHTML=`${i+1}. <b>${list.items[i]}</b> — لم تُكتشف، دون نقاط`;}
+  }
  }
  top10Closed=true;
  const input=$('topGuess');if(input)input.disabled=true;
@@ -1212,10 +1221,10 @@ function revealTop10Remainder(list,reason){
 function renderTop10(){
  let lists=top10ListsForMode();while(topRound<lists.length&&top10ListSeen(lists[topRound]))topRound++;let list=lists[topRound];
  if(!list){const cat=categoryForGame(mode);nextTop10Wave(cat,mode);topRound=0;const fresh=top10ListsForMode();while(topRound<fresh.length&&top10ListSeen(fresh[topRound]))topRound++;const next=fresh[topRound];if(!next){$('gameContent').innerHTML=scoreMarkup()+'<p>جاري تجهيز تشكيلة جديدة…</p><button class="primary" onclick="renderTop10()">تابع</button>';return}list=next;}
- activeTop10List=list;markTop10ListSeen(list);topFound=[];top10Misses=0;top10Closed=false;
+ activeTop10List=list;markTop10ListSeen(list);topFound=[];top10UsedPoolAnswers=[];top10Misses=0;top10Closed=false;
  $('modalTitle').textContent=`Top 10 — القائمة ${topRound+1} من ${lists.length}`;
  $('progressBar').style.width='0%';
- $('gameContent').innerHTML=scoreMarkup()+`<p class="muted">${list.q}</p><p class="muted" style="font-size:12px">المعيار: ${list.source}. كل إجابة صحيحة تمنح نقاطاً حسب ترتيبها: المركز الأول نقطة، وتزيد نقطة مع كل مركز حتى ${list.items.length} نقاط. اللاعبون يتناوبون بعد كل محاولة. عند 5 أخطاء تنتهي القائمة وتظهر الإجابات المتبقية بلا نقاط.</p><div class="toplist">${list.items.map((v,i)=>`<div class="topitem" id="topitem${i}">${i+1}. <span class="muted">مخفي — ${i+1} نقاط</span></div>`).join('')}</div><p class="muted" id="top10TurnInfo">دور: ${escapeHtml(currentNames()[playStyle==='teams'?activeTeam:activePlayer])} · الأخطاء: 0 / 5</p><input class="field" id="topGuess" placeholder="اكتب اسم النادي أو المنتخب أو الإجابة" onkeydown="if(event.key==='Enter')guessTop10()"><div id="feedback" class="feedback"></div><button class="primary" onclick="guessTop10()">تحقق</button> <button class="secondary" id="top10NextBtn" onclick="finishTop10()">تخطي القائمة ←</button>`;
+ $('gameContent').innerHTML=scoreMarkup()+`<p class="muted">${list.q}</p><p class="muted" style="font-size:12px">${list.source}. ${list.openPool?'اكتب أي 10 أسماء من الموضوع؛ كل اسم صحيح جديد يُقبل ويملأ خانة، والنقاط حسب ترتيب الإجابة.':'كل إجابة صحيحة تمنح نقاطاً حسب مركزها في القائمة.'} اللاعبون يتناوبون بعد كل محاولة. عند 5 أخطاء تنتهي القائمة وتظهر الإجابات المتبقية بلا نقاط.</p><div class="toplist">${list.items.map((v,i)=>`<div class="topitem" id="topitem${i}">${i+1}. <span class="muted">${list.openPool?'خانة فارغة':'مخفي'} — ${i+1} نقاط</span></div>`).join('')}</div><p class="muted" id="top10TurnInfo">دور: ${escapeHtml(currentNames()[playStyle==='teams'?activeTeam:activePlayer])} · الأخطاء: 0 / 5</p><input class="field" id="topGuess" placeholder="اكتب إجابة من موضوع القائمة" onkeydown="if(event.key==='Enter')guessTop10()"><div id="feedback" class="feedback"></div><button class="primary" onclick="guessTop10()">تحقق</button> <button class="secondary" id="top10NextBtn" onclick="finishTop10()">تخطي القائمة ←</button>`;
 }
 function top10Mistake(message){
  if(top10Closed)return;
@@ -1228,17 +1237,27 @@ function guessTop10(){
  if(top10Closed)return;
  const input=$('topGuess'),val=norm(input?.value||'');if(!val)return;
  const list=activeTop10List||top10ListsForMode()[topRound];
- const i=list.aliases.findIndex(entry=>entry.some(a=>norm(a)===val));
- if(i<0){if(input)input.value='';top10Mistake('الإجابة مو موجودة ضمن هذه القائمة.');return}
- if(topFound.includes(i)){if(input)input.value='';top10Mistake('هذه الإجابة انكشفت من قبل؛ لا يمكن احتسابها مرتين.');return}
+ let i=-1,displayAnswer='';
+ if(list.openPool){
+  const poolIndex=list.poolAliases.findIndex(entry=>entry.some(a=>norm(a)===val));
+  if(poolIndex<0){if(input)input.value='';top10Mistake('الإجابة مو من موضوع القائمة. اقرأ الموضوع واكتب اسماً ينتمي إله.');return}
+  if(top10UsedPoolAnswers.includes(poolIndex)){if(input)input.value='';const fb=$('feedback');if(fb)fb.textContent='هذا الاسم محسوب من قبل؛ جرّب اسماً مختلفاً بدون خسارة محاولة.';return}
+  if(topFound.length>=10)return;
+  top10UsedPoolAnswers.push(poolIndex);i=topFound.length;displayAnswer=list.poolItems[poolIndex];list.items[i]=displayAnswer;
+ }else{
+  i=list.aliases.findIndex(entry=>entry.some(a=>norm(a)===val));
+  if(i<0){if(input)input.value='';top10Mistake('الإجابة مو موجودة ضمن هذه القائمة.');return}
+  if(topFound.includes(i)){if(input)input.value='';top10Mistake('هذه الإجابة انكشفت من قبل؛ لا يمكن احتسابها مرتين.');return}
+  displayAnswer=list.items[i];
+ }
  const scorer=currentNames()[playStyle==='teams'?activeTeam:activePlayer];
  topFound.push(i);const earned=i+1;addCurrentPoints(earned);advanceTop10Turn();
- const row=$('topitem'+i);if(row){row.classList.add('revealed');row.innerHTML=`${i+1}. <b>${list.items[i]}</b> — <strong>${earned} نقاط</strong>`;}
+ const row=$('topitem'+i);if(row){row.classList.add('revealed');row.innerHTML=`${i+1}. <b>${displayAnswer}</b> — <strong>${earned} نقاط</strong>`;}
  if(input)input.value='';
  const info=$('top10TurnInfo');if(info)info.textContent=`دور: ${escapeHtml(currentNames()[playStyle==='teams'?activeTeam:activePlayer])} · الأخطاء: ${top10Misses} / 5`;
- const fb=$('feedback');if(fb)fb.innerHTML=`✅ ${escapeHtml(scorer)} عرف ${list.items[i]} بالمركز ${i+1} وحصل على ${earned} نقاط.<br>${scoreMarkup()}`;
- $('progressBar').style.width=(topFound.length/list.items.length*100)+'%';
- if(topFound.length===list.items.length)revealTop10Remainder(list,'اكتشفتم القائمة كاملة!');
+ const fb=$('feedback');if(fb)fb.innerHTML=`✅ ${escapeHtml(scorer)} عرف ${displayAnswer} بالمركز ${i+1} وحصل على ${earned} نقاط.<br>${scoreMarkup()}`;
+ $('progressBar').style.width=(topFound.length/10*100)+'%';
+ if(topFound.length===(list.openPool?10:list.items.length))revealTop10Remainder(list,'اكتملت الإجابات العشر!');
 }
 function finishTop10(){
  const list=activeTop10List||top10ListsForMode()[topRound];
